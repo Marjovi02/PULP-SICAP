@@ -1,5 +1,6 @@
 FROM php:8.2-apache
 
+# Instalar dependencias del sistema
 RUN apt-get update && apt-get install -y \
     libpng-dev \
     libonig-dev \
@@ -7,37 +8,31 @@ RUN apt-get update && apt-get install -y \
     zip \
     unzip \
     git \
-    curl \
-    libpq-dev
+    curl
 
-RUN docker-php-ext-install pdo pdo_mysql pdo_pgsql mbstring exif pcntl bcmath gd
+# Extensiones PHP necesarias para Laravel
+RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
+
+# Habilitar mod_rewrite
 RUN a2enmod rewrite
 
+# Instalar Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Copiar proyecto
+COPY . /var/www/html
+
+# Establecer directorio de trabajo
 WORKDIR /var/www/html
-COPY . .
 
-# Composer
-RUN curl -sS https://getcomposer.org/installer | php -- \
-    --install-dir=/usr/local/bin \
-    --filename=composer
+# Instalar dependencias de Laravel (🔥 ESTE ERA EL PROBLEMA)
+RUN composer install --no-dev --optimize-autoloader
 
-RUN composer install --no-dev --optimize-autoloader --no-interaction
-
-# PERMISOS
+# Permisos
 RUN chown -R www-data:www-data /var/www/html \
- && chmod -R 775 storage bootstrap/cache
+    && chmod -R 775 storage bootstrap/cache
 
-# APACHE -> /public
+# Apuntar Apache a /public
 RUN sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/sites-available/000-default.conf
 
-# 🔑 CLAVE DE LARAVEL
-RUN php artisan key:generate --force
-
-# LIMPIAR CACHÉS
-RUN php artisan config:clear \
- && php artisan cache:clear \
- && php artisan route:clear \
- && php artisan view:clear
-
 EXPOSE 80
-CMD ["apache2-foreground"]
