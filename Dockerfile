@@ -10,8 +10,15 @@ RUN apt-get update && apt-get install -y \
     git \
     curl
 
-# Extensiones PHP necesarias para Laravel
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
+# Instalar dependencias del sistema necesarias
+RUN apt-get update && apt-get install -y \
+    libzip-dev \
+    zip \
+    unzip \
+    && docker-php-ext-install zip pdo_mysql mbstring exif pcntl bcmath gd \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 
 # Habilitar mod_rewrite
 RUN a2enmod rewrite
