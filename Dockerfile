@@ -13,29 +13,31 @@ RUN apt-get update && apt-get install -y \
 RUN docker-php-ext-install pdo pdo_mysql pdo_pgsql mbstring exif pcntl bcmath gd
 RUN a2enmod rewrite
 
-# Copiar proyecto
-COPY . /var/www/html
 WORKDIR /var/www/html
+COPY . .
 
-# Instalar Composer
+# Composer
 RUN curl -sS https://getcomposer.org/installer | php -- \
     --install-dir=/usr/local/bin \
     --filename=composer
 
-# Forzar instalación de dependencias
-RUN composer clear-cache \
-    && composer install --no-dev --optimize-autoloader --no-interaction
+RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# Verificación (si esto falla, el build falla y veremos el error)
-RUN test -f vendor/autoload.php
-
-# Permisos
+# PERMISOS
 RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 775 /var/www/html/storage \
-    && chmod -R 775 /var/www/html/bootstrap/cache
+ && chmod -R 775 storage bootstrap/cache
 
-# Apache apunta a /public
+# APACHE -> /public
 RUN sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/sites-available/000-default.conf
+
+# 🔑 CLAVE DE LARAVEL
+RUN php artisan key:generate --force
+
+# LIMPIAR CACHÉS
+RUN php artisan config:clear \
+ && php artisan cache:clear \
+ && php artisan route:clear \
+ && php artisan view:clear
 
 EXPOSE 80
 CMD ["apache2-foreground"]
